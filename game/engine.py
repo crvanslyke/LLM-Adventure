@@ -125,13 +125,26 @@ class GameEngine:
         # Check if a puzzle is active and let it handle input first
         if room.puzzle_id:
             puzzle = self.puzzles.get(room.puzzle_id)
-            if puzzle and self.state.puzzle_states.get(room.puzzle_id) == "in_progress":
-                result = puzzle.handle_input(raw, self.state, self.display)
-                if result is not None:
-                    self.display.print(result)
-                    self._check_puzzle_rewards(room.puzzle_id)
-                    self._check_journal_triggers()
+            if puzzle:
+                pstate = self.state.puzzle_states.get(room.puzzle_id)
+                # Auto-start unsolved puzzles when player tries interaction
+                if pstate == "unsolved" and puzzle.can_start(self.state):
+                    start_result = puzzle.start(self.state, self.display)
+                    self.display.print(start_result, "puzzle")
+                    # Now try handling the input as well
+                    result = puzzle.handle_input(raw, self.state, self.display)
+                    if result is not None:
+                        self.display.print(result)
+                        self._check_puzzle_rewards(room.puzzle_id)
+                        self._check_journal_triggers()
                     return
+                if pstate == "in_progress":
+                    result = puzzle.handle_input(raw, self.state, self.display)
+                    if result is not None:
+                        self.display.print(result)
+                        self._check_puzzle_rewards(room.puzzle_id)
+                        self._check_journal_triggers()
+                        return
 
         cmd = parse(raw)
 
@@ -216,8 +229,8 @@ class GameEngine:
 
         self._check_journal_triggers()
 
-        # Auto-start puzzles on first visit
-        if is_new and room.puzzle_id:
+        # Auto-start puzzles when entering a room (not just first visit)
+        if room.puzzle_id:
             puzzle = self.puzzles.get(room.puzzle_id)
             if puzzle and self.state.puzzle_states.get(room.puzzle_id) == "unsolved":
                 if puzzle.can_start(self.state):
