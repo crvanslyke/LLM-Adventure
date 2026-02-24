@@ -59,37 +59,58 @@ def resolve_item_name(name: str, candidates: list[str],
                        items_db: dict[str, Item]) -> str | None:
     """Resolve a player-typed item name to an item ID.
 
-    Tries: exact match, display name match, substring match.
+    Tries (in order): exact ID match, display name match, substring match.
+    Handles spaces, underscores, and partial names flexibly.
     """
     if not name:
         return None
 
-    name = name.strip().lower().replace(" ", "_")
+    raw = name.strip().lower()
+    underscored = raw.replace(" ", "_")
+    spaced = raw.replace("_", " ")
 
-    # Exact ID match
-    if name in candidates:
-        return name
+    # 1. Exact ID match (with underscores)
+    if underscored in candidates:
+        return underscored
 
-    # Display name match
+    # 2. Exact display name match
     for cid in candidates:
         if cid in items_db:
-            if items_db[cid].name.lower().replace(" ", "_") == name:
+            display = items_db[cid].name.lower()
+            if display == spaced or display.replace(" ", "_") == underscored:
                 return cid
 
-    # Also try the raw name with spaces
-    name_spaced = name.replace("_", " ")
-
-    # Substring match
+    # 3. Substring match on both ID and display name
     matches = []
     for cid in candidates:
-        if name in cid or name_spaced in cid:
+        # Check against the item ID
+        if underscored in cid or spaced in cid:
             matches.append(cid)
-        elif cid in items_db:
-            item_name_lower = items_db[cid].name.lower()
-            if name_spaced in item_name_lower or name in item_name_lower:
+            continue
+        # Check against the display name
+        if cid in items_db:
+            display = items_db[cid].name.lower()
+            if spaced in display or underscored in display:
+                matches.append(cid)
+                continue
+            # Also check if any significant word matches
+            name_words = set(spaced.split())
+            display_words = set(display.split())
+            # If all typed words appear in the display name, it's a match
+            if name_words and name_words.issubset(display_words):
                 matches.append(cid)
 
     if len(matches) == 1:
+        return matches[0]
+
+    # 4. If multiple matches, prefer the one that's an exact substring
+    if len(matches) > 1:
+        for m in matches:
+            if underscored == m:
+                return m
+            if m in items_db and items_db[m].name.lower() == spaced:
+                return m
+        # Return the first match as a fallback
         return matches[0]
 
     return None
