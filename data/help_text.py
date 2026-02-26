@@ -63,6 +63,10 @@ HELP_TEXT = """\
   HELP:        help (or: h, ?) -- show this message
   ABOUT:       about -- credits and info
 
+  SAVE/LOAD:
+  SAVE:        save -- save your progress
+  LOAD:        load (or: restore) -- restore a saved game
+
   QUIT:        quit (or: q) -- exit the game
 """
 

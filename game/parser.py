@@ -38,6 +38,7 @@ VERB_ALIASES: dict[str, str] = {
     "notes": "journal",
     "log": "journal",
     "sc": "score",
+    "restore": "load",
     "speak": "talk",
     "ask": "talk",
     "select": "choose",
@@ -46,7 +47,8 @@ VERB_ALIASES: dict[str, str] = {
 }
 
 # No-argument commands
-SOLO_VERBS = {"look", "inventory", "help", "quit", "score", "journal", "about"}
+SOLO_VERBS = {"look", "inventory", "help", "quit", "score", "journal", "about",
+              "save", "load"}
 
 
 def normalize_direction(word: str) -> str:

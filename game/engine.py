@@ -2,7 +2,7 @@
 
 import random
 
-from game.state import GameState
+from game.state import GameState, SAVE_FILE
 from game.display import Display
 from game.parser import parse, Command
 from game import player as player_mod
@@ -97,8 +97,27 @@ class GameEngine:
         """Main game loop."""
         print(INTRO_TEXT)
 
-        # Show first room
-        self._enter_room(self.state.current_room, first_time=True)
+        # Offer to load a saved game if one exists
+        if SAVE_FILE.exists():
+            self.display.print("A saved game was found. Load it? (yes/no)")
+            try:
+                answer = input("> ").strip().lower()
+            except (EOFError, KeyboardInterrupt):
+                answer = "no"
+            if answer in ("yes", "y"):
+                try:
+                    self.state = GameState.load()
+                    self.display.print("Game loaded!\n")
+                    self._do_look()
+                except Exception as e:
+                    self.display.print(f"Error loading save: {e}. Starting new game.\n")
+                    self._enter_room(self.state.current_room, first_time=True)
+            else:
+                self.display.print("")
+                self._enter_room(self.state.current_room, first_time=True)
+        else:
+            # Show first room
+            self._enter_room(self.state.current_room, first_time=True)
 
         while not self.state.game_over:
             try:
@@ -175,6 +194,10 @@ class GameEngine:
                 display_score(self.state, self.display)
             case "hint":
                 self._do_hint()
+            case "save":
+                self._do_save()
+            case "load":
+                self._do_load()
             case "about":
                 print(ABOUT_TEXT)
             case "quit":
@@ -490,6 +513,32 @@ class GameEngine:
         else:
             self.display.print("Look around and examine things. Check your journal for clues.")
 
+    def _do_save(self) -> None:
+        try:
+            path = self.state.save()
+            self.display.print(f"Game saved to {path}")
+        except Exception as e:
+            self.display.print(f"Error saving game: {e}", "error")
+
+    def _do_load(self) -> None:
+        if not SAVE_FILE.exists():
+            self.display.print("No saved game found.")
+            return
+        self.display.print("Load saved game? Current progress will be lost. (yes/no)")
+        try:
+            answer = input("> ").strip().lower()
+        except (EOFError, KeyboardInterrupt):
+            answer = "no"
+        if answer in ("yes", "y"):
+            try:
+                self.state = GameState.load()
+                self.display.print("Game loaded!")
+                self._do_look()
+            except Exception as e:
+                self.display.print(f"Error loading game: {e}", "error")
+        else:
+            self.display.print("Load cancelled.")
+
     def _do_quit(self) -> None:
         self.display.print("Are you sure you want to quit? (yes/no)")
         try:
@@ -497,6 +546,11 @@ class GameEngine:
         except (EOFError, KeyboardInterrupt):
             answer = "yes"
         if answer in ("yes", "y"):
+            try:
+                self.state.save()
+                self.display.print("\nProgress auto-saved.")
+            except Exception:
+                pass
             self.display.print("\nFinal score:")
             display_score(self.state, self.display)
             self.display.print("\nGoodbye, researcher. The model awaits your return.")
